@@ -1,0 +1,250 @@
+/*
+Test writing and reading to the filesystem using EpoxyFS on EpoxyDuino, and
+LittleFS on ESP8266 and ESP32. The expected output on various platforms is shown
+below:
+
+*/
+
+#include <stdio.h> // remove()
+#include <Arduino.h>
+
+#if defined(EPOXY_DUINO)
+  #define FILE_SYSTEM_NAME "EpoxyFS"
+  #include <ftw.h> // nftw()
+  #include <EpoxyFS.h>
+  #define FILE_SYSTEM fs::EpoxyFS
+  using fs::File;
+  using fs::Dir;
+#else
+  #error Unsupported platform
+#endif
+
+#define TEST_FILE_NAME "/testfile.txt"
+
+#if defined(EPOXY_DUINO)
+
+int removeFile(
+    const char *fpath,
+    const struct stat * /*sb*/,
+    int typeflag,
+    struct FTW *ftwbuf)
+{
+  if (typeflag == FTW_F) {
+    printf("File: %s\n", fpath);
+  } else if (typeflag == FTW_SL) {
+    printf("Symlink: %s\n", fpath);
+  } if (typeflag == FTW_DP) {
+    printf("Post Dir: %s\n", fpath);
+  }
+  int status = 0;
+  if (ftwbuf->level != 0) {
+    status = remove(fpath);
+  }
+  return status;
+}
+
+// Maximum number of open file descriptors.
+static const int MAX_NOPEN_FD = 5;
+
+// Recursively remove files under 'epoxyfsdata' directory using nftw().
+void removeDir() {
+  Serial.println("== Recursively remove '/' using nftw()");
+  nftw("epoxyfsdata", removeFile, MAX_NOPEN_FD,
+      FTW_PHYS | FTW_MOUNT | FTW_DEPTH);
+}
+
+#else
+
+void removeDir() {
+  Serial.println("== Recursively remove '/' not implemented");
+}
+
+#endif
+
+void listDir() {
+#if defined(ESP32)
+  Serial.println("== List '/' not implemented on ESP32");
+
+#else
+
+  Serial.println("== List '/' using fs::Dir");
+
+  // Open dir folder
+  Dir dir = FILE_SYSTEM.openDir("/");
+
+  int count = 1;
+  // Cycle all the content
+  while (dir.next()) {
+    Serial.print("Dir entry #");
+    Serial.println(count);
+
+    // Print info from directory entry
+    Serial.print("Dir: fileName()=");
+    Serial.println(dir.fileName());
+    if (dir.isDirectory()) {
+      Serial.println("isDirectory=true");
+    } else {
+      Serial.println("isDirectory=false");
+    }
+    Serial.print("fileSize()=");
+    Serial.println(dir.fileSize());
+
+    // Print info from File object.
+    Serial.print("File: ");
+    File f = dir.openFile("r");
+    Serial.print("name()=");
+    Serial.println(f.name());
+  #if defined(ESP32)
+    Serial.print("path()=");
+    Serial.println(f.path());
+  #else
+    Serial.print("fullName()=");
+    Serial.println(f.fullName());
+  #endif
+    Serial.print("size()=");
+    Serial.println(f.size());
+    f.close();
+
+    count++;
+  }
+#endif
+}
+
+void writeFile() {
+  Serial.println("== Writing " TEST_FILE_NAME);
+
+  File f = FILE_SYSTEM.open(TEST_FILE_NAME, "w");
+  f.println("This is a test");
+  f.println(42);
+  f.println(42.0);
+  f.println(42, 16);
+  f.close();
+
+  bool exists = FILE_SYSTEM.exists(TEST_FILE_NAME);
+  if (exists) {
+    Serial.println("Created " TEST_FILE_NAME);
+  } else {
+    Serial.println("ERROR creating " TEST_FILE_NAME);
+  }
+}
+
+void readFile() {
+  Serial.println("== Reading " TEST_FILE_NAME);
+
+  File f = FILE_SYSTEM.open(TEST_FILE_NAME, "r");
+  Serial.print("name(): ");
+  Serial.println(f.name());
+  #if defined(ESP32)
+    Serial.print("path()=");
+    Serial.println(f.path());
+  #else
+    Serial.print("fullName(): ");
+    Serial.println(f.fullName());
+  #endif
+  while (f.available()) {
+    String s = f.readStringUntil('\r');
+    Serial.print(s);
+    f.read();
+    Serial.println();
+  }
+  f.close();
+}
+
+/*-------------------------------------------------------------------------------------*/
+
+
+#define CRAFT_NAME "UAVWARE" // Used as filename of the converted logfile.
+
+//General stuff
+float dt;
+unsigned long current_time, prev_time;
+
+// 100 bytes maximum at 2 Mbit/s UART speed and a logged data frame every 0.5 ms.
+static uint8_t bb_buffer[ 93 ] = "FRAME"; // 98 bytes practical limit
+
+void loopRate(int freq) {
+  //DESCRIPTION: Regulate main loop rate to specified frequency in Hz
+  /*
+   * It's good to operate at a constant loop rate for filters to remain stable and whatnot.
+   */
+  float invFreq = 1.0/freq*1000000.0;
+  unsigned long checker = micros();
+  
+  //Sit in loop until appropriate time has passed
+  while (invFreq > (checker - current_time)) {
+    checker = micros();
+  }
+}
+
+void setup() {
+#if !defined(EPOXY_DUINO)
+  delay(1000); // some boards reboot twice
+#endif
+
+  Serial.begin(115200);
+  while (!Serial); // For Leonardo/Micro
+#if defined(EPOXY_DUINO)
+  Serial.setLineModeUnix();
+#endif
+
+  Serial.println(F("== Initializing " FILE_SYSTEM_NAME));
+  if (! FILE_SYSTEM.begin()) {
+    Serial.println(F("ERROR initializing file system."));
+    exit(1);
+  }
+
+  Serial.println(F("== Formatting file system"));
+  if (! FILE_SYSTEM.format()) {
+    Serial.println(F("ERROR formatting file system."));
+    exit(1);
+  }
+
+  listDir();
+  writeFile();
+  listDir();
+  readFile();
+  removeDir();
+  listDir();
+
+  Serial.println(F("== Done"));
+
+#if defined(EPOXY_DUINO)
+  exit(0);
+#endif
+}
+
+void loop() {
+  //Keep track of what time it is and how much time has elapsed since the last loop
+  prev_time = current_time;      
+  current_time = micros();      
+  dt = (current_time - prev_time)/1000000.0;
+
+  //Regulate loop rate
+  loopRate(100); // Hz
+}
+
+void log_buffer( uint8_t buffer[], size_t size )
+{
+  Serial.write( buffer, size );
+}
+
+void blackbox_log( void )
+{
+  static uint32_t bb_iteration;
+
+  static bool writeCraftOnce = true;
+  if ( writeCraftOnce ) {
+    writeCraftOnce = false;
+    static uint8_t buffer[] = "CRAFT" CRAFT_NAME;
+    log_buffer( buffer, sizeof( buffer ) );
+    return;
+  }
+
+  int pos = 5; // size of FRAME
+
+  // iteration
+  *(uint32_t *)( &bb_buffer[ pos ] ) = bb_iteration; pos += 4;
+  // time (not used for FFT, just for time displaying)
+  *(uint32_t *)( &bb_buffer[ pos ] ) = micros(); pos += 4;
+
+}
