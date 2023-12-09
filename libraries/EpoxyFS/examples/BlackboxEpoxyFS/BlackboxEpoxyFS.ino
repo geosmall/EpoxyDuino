@@ -327,7 +327,7 @@ void loop()
   //Regulate loop rate
   loopRate(100); // Hz
 
-  if (bb_iteration == 2) {
+  if (bb_iteration == 100) {
     exit(0);
   }
 }
