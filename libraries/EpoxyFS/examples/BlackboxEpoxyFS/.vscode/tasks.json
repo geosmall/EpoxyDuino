@@ -11,7 +11,11 @@
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "presentation": {
+                "clear": true,
+                "showReuseMessage": false,
+            },
         },
         {
             "label": "run",
@@ -21,7 +25,11 @@
             "group": {
                 "kind": "build",
                 "isDefault": false
-            }
+            },
+            "presentation": {
+                "clear": true,
+                "showReuseMessage": false,
+            },
         },
         {
             "label": "clean",
@@ -31,7 +39,11 @@
             "group": {
                 "kind": "build",
                 "isDefault": false
-            }
+            },
+            "presentation": {
+                "clear": true,
+                "showReuseMessage": false,
+            },
         },
     ]
 }

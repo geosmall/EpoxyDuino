@@ -19,7 +19,7 @@ using fs::File;
 	#error Unsupported platform
 #endif
 
-#define TEST_FILE_NAME "/testfile.txt"
+#define TEST_FILE_NAME "/LOG001.TXT"
 
 #if defined( EPOXY_DUINO )
 
@@ -157,6 +157,7 @@ void readFile()
 /*-------------------------------------------------------------------------------------*/
 
 #define CRAFT_NAME "UAVWARE" // Used as filename of the converted logfile.
+File f;
 
 // General stuff
 float dt;
@@ -168,6 +169,7 @@ static uint8_t bb_buffer[ 93 ] = "FRAME"; // 98 bytes practical limit
 void log_buffer( uint8_t buffer[], size_t size )
 {
 	Serial.write( buffer, size );
+	f.write( buffer, size );
 }
 
 void blackbox_log( void )
@@ -322,6 +324,8 @@ void loopRate( int freq )
 	}
 }
 
+/*---------------------------------------------------------------------------------------------*/
+
 void setup()
 {
 #if !defined( EPOXY_DUINO )
@@ -335,30 +339,34 @@ void setup()
 	Serial.setLineModeUnix();
 #endif
 
-	Serial.println( F( "== Initializing " FILE_SYSTEM_NAME ) );
+	Serial.println( "== Initializing File System: " FILE_SYSTEM_NAME );
 	if( !FILE_SYSTEM.begin() ) {
-		Serial.println( F( "ERROR initializing file system." ) );
+		Serial.println( "ERROR initializing file system." );
 		exit( 1 );
 	}
 
-	Serial.println( F( "== Formatting file system" ) );
+	Serial.println( "== Formatting file system" );
 	if( !FILE_SYSTEM.format() ) {
-		Serial.println( F( "ERROR formatting file system." ) );
+		Serial.println( "ERROR formatting file system." );
 		exit( 1 );
 	}
 
-	listDir();
-	writeFile();
-	listDir();
-	readFile();
+	// listDir();
+	// writeFile();
+	// listDir();
+	// readFile();
 	removeDir();
 	listDir();
 
-	Serial.println( F( "== Done" ) );
+	Serial.println( "== Writing " TEST_FILE_NAME );
 
-#if defined( EPOXY_DUINO )
-	// exit(0);
-#endif
+	f = FILE_SYSTEM.open( TEST_FILE_NAME, "w" );
+
+	// Serial.println( F( "== Done" ) );
+
+	// #if defined( EPOXY_DUINO )
+	// 	exit(0);
+	// #endif
 }
 
 void loop()
@@ -378,6 +386,7 @@ void loop()
 	loopRate( 100 ); // Hz
 
 	if( bb_iteration == 100 ) {
+		f.close();
 		exit( 0 );
 	}
 }
