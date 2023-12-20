@@ -19,7 +19,7 @@ using fs::File;
 	#error Unsupported platform
 #endif
 
-#define TEST_FILE_NAME "/LOG001.TXT"
+#define TEST_FILE_NAME "/LOG000.TXT"
 
 #if defined( EPOXY_DUINO )
 
@@ -219,7 +219,7 @@ void blackbox_log( void )
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
 	// rcCommand
-	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
+	*(int16_t*)( &bb_buffer[ pos ] ) = 200;
 	pos += 2;
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
@@ -228,7 +228,7 @@ void blackbox_log( void )
 	*(uint16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
 	// setpoint
-	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
+	*(int16_t*)( &bb_buffer[ pos ] ) = -100;
 	pos += 2;
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
@@ -245,14 +245,14 @@ void blackbox_log( void )
 	// rssi
 	*(uint16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
-	// gyroADC
+	// gyroADC - Gyro scale int16_t -1 = 1 deg/sec
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
-	// accSmooth
+	// accSmooth - Acc scale int16_t 2048 = 1g
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
@@ -268,7 +268,7 @@ void blackbox_log( void )
 	pos += 2;
 	*(int16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2;
-	// motor
+	// motor - scale 1000 = 100%
 	*(uint16_t*)( &bb_buffer[ pos ] ) = 0;
 	pos += 2; // BR
 	*(uint16_t*)( &bb_buffer[ pos ] ) = 0;
